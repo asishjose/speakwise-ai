@@ -1,0 +1,18 @@
+# SpeakWise AI
+
+An Agentic AI Communication Training System.
+
+## Overview
+
+SpeakWise AI helps users improve communication
+through intelligent planning, dynamic tool selection,
+personalized feedback, and conversational memory.
+
+## Tech Stack
+
+- Python
+- LangChain
+- LangGraph
+- OpenAI
+- Pydantic
+- Streamlit
