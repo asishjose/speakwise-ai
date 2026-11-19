@@ -59,3 +59,23 @@ Those tests mock all workflow and LLM boundaries. The existing script-style
 tests that directly call Gemini (`test_agent.py`, `test_intent.py`,
 `test_planner.py`, and `test_history_integration.py`) are intentionally not
 included in that command because they require live Gemini access.
+
+## Streamlit frontend
+
+The Streamlit UI is a separate HTTP client for the FastAPI backend; it never
+accesses Gemini or SQLite directly. Copy `frontend/.env.example` to a local
+environment configuration (or export its values), then start the services in
+separate terminals:
+
+```bash
+# Terminal 1
+PYTHONPATH=src uvicorn speakwise.api.main:app --reload
+
+# Terminal 2
+streamlit run frontend/app.py
+```
+
+Set `BACKEND_URL` when FastAPI is not running at `http://127.0.0.1:8000`.
+The backend only offers history lookup for a known session ID, so the sidebar
+lists sessions used during the current browser session and also lets users
+paste a previously saved session ID.
