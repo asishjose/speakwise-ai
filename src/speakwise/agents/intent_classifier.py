@@ -51,7 +51,7 @@ Categories:
 10. other:
     Requests unrelated to the above categories.
 
-Classification rules:
+CLASSIFICATION RULES:
 
 - Identify the user's primary goal, not merely keywords.
 - Consider the complete context of the request.
@@ -66,29 +66,72 @@ Classification rules:
 - Do not perform the requested task.
 - Do not invent missing context.
 - Provide a brief explanation for your classification.
+
+CONVERSATION CONTEXT RULES:
+
+- Consider previous user and assistant messages when classifying
+  the current request.
+- Interpret short follow-up messages using conversation history.
+- Understand references such as "it", "that", "make it better",
+  "change this", and "do the same".
+- If a user requests modification of previously generated content,
+  classify according to the requested modification.
+- Example:
+  Previous interaction: Assistant generated an email.
+  Current request: "Make it more formal."
+  Expected intent: tone_improvement.
+
+- Example:
+  Previous interaction: Assistant generated a response.
+  Current request: "Correct its grammar."
+  Expected intent: grammar_correction.
+
+- Always prioritize the latest user message.
+- Do not classify based only on previous messages.
+- If the current request is unrelated to previous context,
+  classify it independently.
+- Never perform the requested task.
 """
 
 
-def classify_intent(user_input: str) -> IntentClassification:
+def classify_intent(
+    user_input: str,
+    conversation_context: str = ""
+) -> IntentClassification:
 
-    if not user_input.strip():
+    if not user_input or not user_input.strip():
         raise ValueError("User input cannot be empty")
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=user_input,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-            response_mime_type="application/json",
-            response_schema=IntentClassification,
-            temperature=0.1
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=f"""
+            CONVERSATION HISTORY:
+            {conversation_context if conversation_context else "No previous conversation."}
+
+            CURRENT USER MESSAGE:
+            {user_input}
+            """,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_schema=IntentClassification,
+                temperature=0.1
+            )
         )
-    )
 
-    if response.parsed is not None:
-        return IntentClassification.model_validate(response.parsed)
+        if response.parsed is not None:
+            return IntentClassification.model_validate(response.parsed)
 
-    if response.text:
-        return IntentClassification.model_validate_json(response.text)
+        if response.text:
+            return IntentClassification.model_validate_json(response.text)
 
-    raise ValueError("Gemini returned an empty response")
+        raise ValueError("Gemini returned an empty response")
+
+    except ValueError:
+        raise
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Intent classification failed: {str(e)}"
+        ) from e
