@@ -2,13 +2,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ToolName = Literal[
-    "email_writer",
-    "interview_coach",
-    "grammar_checker",
-    "tone_improver",
-    "speech_coach",
-    "conflict_resolution_coach",
-    "customer_communication_writer"
+    "grammar_tool",
+    "tone_tool",
+    "email_tool",
+    "interview_tool",
+    "conversation_tool",
+    "scoring_tool"
 ]
 
 class PlannedAction(BaseModel):
