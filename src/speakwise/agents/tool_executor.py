@@ -30,7 +30,8 @@ def _execute_action(action, previous_result=None):
 
     tool = get_tool(action.tool_name)
 
-    arguments = dict(action.arguments)
+    #arguments = dict(action.arguments)
+    arguments = action.arguments.model_dump(exclude_defaults=True)
 
     # Pass the previous result to the next dependent tool
     if action.use_previous_output:

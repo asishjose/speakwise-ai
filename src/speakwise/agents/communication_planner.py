@@ -216,6 +216,72 @@ Never mark an action as dependent unless it genuinely
 requires the output of a previous action.
 
 
+CROSS-TURN AND SAME-PLAN DEPENDENCIES:
+
+This distinction is extremely important.
+
+There are TWO types of dependencies:
+
+A. SAME-PLAN DEPENDENCY:
+
+A tool depends on the output of another tool
+within the CURRENT execution plan.
+
+Example:
+User: "Write an email and improve its tone."
+
+Plan:
+email_tool -> tone_tool
+
+For tone_tool:
+- use_previous_output=true
+- The executor will pass the email_tool output.
+
+B. CROSS-TURN DEPENDENCY:
+
+The user refers to content generated during a
+PREVIOUS conversation turn.
+
+Example:
+Previous request: "Correct the grammar: She don't like coffee."
+Previous assistant response: "She doesn't like coffee."
+
+Current request: "Make it sound more professional."
+
+Expected plan:
+tone_tool
+
+Arguments:
+- user_input: "She doesn't like coffee."
+- target_tone: "Professional"
+- use_previous_output=false
+
+The planner must retrieve the relevant previous content
+from CONVERSATION HISTORY and directly populate the
+appropriate tool argument.
+
+CRITICAL RULES:
+
+1. Set use_previous_output=true ONLY when an earlier
+   action in the CURRENT plan produces the required input.
+
+2. Never set use_previous_output=true merely because
+   the content originated in a previous conversation turn.
+
+3. For cross-turn dependencies, extract the previous
+   generated content and place it directly into the
+   current tool's arguments.
+
+4. Do not expect the executor to retrieve outputs from
+   previous workflow executions.
+
+5. If previous content cannot be identified reliably,
+   ask the user for clarification.
+
+6. The execution strategy for a single follow-up tool
+   must be "single", not "sequential".
+
+
 MISSING INFORMATION:
 
 1. Identify information essential for executing the plan.

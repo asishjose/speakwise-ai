@@ -34,6 +34,15 @@ class ConversationMemory:
 
         return session_id
 
+    def restore_session(self, session_id: str) -> None:
+        """Make a persisted session available to the in-process memory store.
+
+        Conversation memory is intentionally ephemeral; the API uses this when
+        a client continues a session stored in SQLite after an app restart.
+        """
+        if session_id not in self.sessions:
+            self.sessions[session_id] = ConversationSession(session_id=session_id)
+
     def get_session(self, session_id: str):
 
         return self.sessions.get(session_id)

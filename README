@@ -16,3 +16,46 @@ personalized feedback, and conversational memory.
 - OpenAI
 - Pydantic
 - Streamlit
+
+## FastAPI backend
+
+The REST API extends the existing SpeakWise workflow (intent classification,
+planning, tool execution, memory, and SQLite coaching history). Set
+`GEMINI_API_KEY` in `.env`, install dependencies, then start it from the
+repository root:
+
+```bash
+PYTHONPATH=src uvicorn speakwise.api.main:app --reload
+```
+
+Swagger UI is available at `http://127.0.0.1:8000/docs` and the health check
+is `GET /health`. Database tables are initialized during application startup;
+startup does not make an LLM request.
+
+Example requests:
+
+```json
+POST /analyze
+{"user_input": "Correct the grammar: She don't like coffee."}
+
+POST /coach
+{"user_input": "Make this message more professional: Send it now"}
+
+POST /improve
+{"user_input": "Send it now", "instructions": "Make it polite and professional"}
+```
+
+Use `GET /history/{session_id}` to retrieve persisted interactions in
+chronological order. A supplied session ID must already exist; omitting it
+from `/coach` starts a new session.
+
+Run the no-network API test suite with:
+
+```bash
+GEMINI_API_KEY=test-key-not-used-for-network-calls PYTHONPATH=src pytest -q tests/test_api.py
+```
+
+Those tests mock all workflow and LLM boundaries. The existing script-style
+tests that directly call Gemini (`test_agent.py`, `test_intent.py`,
+`test_planner.py`, and `test_history_integration.py`) are intentionally not
+included in that command because they require live Gemini access.

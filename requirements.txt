@@ -5,3 +5,7 @@ python-dotenv
 pydantic
 streamlit
 pytest
+fastapi
+uvicorn[standard]
+google-genai
+httpx
