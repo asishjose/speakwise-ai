@@ -94,7 +94,7 @@ could potentially improve the result.
 
 TOOL ARGUMENTS:
 
-Every PlannedAction MUST contain an arguments dictionary
+Every PlannedAction MUST contain an arguments object
 with the exact keyword arguments expected by its selected tool.
 
 Use only the following argument specifications.
@@ -131,7 +131,7 @@ Use only the following argument specifications.
 
 ARGUMENT EXTRACTION RULES:
 
-1. Extract argument values directly from the user's request
+1. Extract argument values from the user's request
    and available conversation context.
 
 2. Never invent user information or fabricate argument values.
@@ -139,31 +139,32 @@ ARGUMENT EXTRACTION RULES:
 3. Preserve the user's original text when extracting
    user_input, candidate_answer, or original_response.
 
-4. Every arguments dictionary must contain all the
-   specified argument keys for its selected tool.
+4. Populate only the predefined fields relevant to
+   the selected tool.
 
-5. Use empty strings ("") for optional string arguments
+5. Leave unrelated argument fields empty.
+
+6. Use empty strings for optional string arguments
    when information is not provided.
 
-6. Do not use empty strings to silently replace missing
+7. Do not use empty strings to silently replace missing
    essential information.
 
-7. Distinguish between essential and optional arguments
+8. Distinguish between essential and optional arguments
    based on the requested operation.
 
-8. If essential information is missing:
+9. If essential information is missing:
    - Set needs_clarification to true.
    - Provide one clear clarification question.
    - Do not invent the missing argument.
    - Do not pretend the plan is ready for execution.
 
-9. If sufficient information is available:
-   - Set needs_clarification to false.
-   - Set clarification_question to an empty string.
+10. If sufficient information is available:
+    - Set needs_clarification to false.
+    - Set clarification_question to an empty string.
 
-10. If the user provides the required information
-    in previous conversation context, reuse it instead
-    of asking again.
+11. If the user provides required information in previous
+    conversation context, reuse it instead of asking again.
 
 
 CONTENT CREATION AND MODIFICATION:
@@ -240,6 +241,43 @@ However, prioritize the actual user request if the
 classification conflicts with the user's stated goal.
 
 
+CONVERSATION CONTEXT RULES:
+
+1. Use previous conversation messages to understand the
+   current user request.
+
+2. Resolve references such as:
+   - "it"
+   - "that"
+   - "make it better"
+   - "change this"
+   - "rewrite it"
+   - "make it more formal"
+   - "do the same"
+
+3. Retrieve relevant information from previous user
+   and assistant messages.
+
+4. If the user requests modifications to previously
+   generated content, use that content as the input
+   for the appropriate tool.
+
+5. Do not ask the user to repeat information already
+   available in conversation history.
+
+6. Extract tool arguments from both the current request
+   and relevant previous messages.
+
+7. The latest user message determines the new action.
+   Do not repeat previous actions unnecessarily.
+
+8. If required information cannot be found in the current
+   request or conversation history, ask for clarification.
+
+9. Do not treat previous assistant suggestions as confirmed
+   user requirements unless the user accepted them.
+
+
 TOOL RESTRICTIONS:
 
 - Only use the six tools in the available tool catalogue.
@@ -247,7 +285,7 @@ TOOL RESTRICTIONS:
 - Never execute tools.
 - Never generate the final communication.
 - Never invent argument values.
-- Every PlannedAction must contain its arguments dictionary.
+- Every PlannedAction must contain its arguments object.
 - Every PlannedAction must identify its dependencies.
 
 
@@ -285,30 +323,46 @@ Prioritize accuracy in tool selection and argument extraction.
 
 def create_plan(
     user_input: str,
-    intent: IntentClassification
+    intent: IntentClassification,
+    conversation_context: str = ""
 ) -> CommunicationPlan:
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=f"""
-        USER REQUEST:
-        {user_input}
+    if not user_input or not user_input.strip():
+        raise ValueError("User input cannot be empty")
 
-        INTENT CLASSIFICATION:
-        {intent.model_dump_json()}
-        """,
-        config=types.GenerateContentConfig(
-            system_instruction=PLANNER_PROMPT,
-            response_mime_type="application/json",
-            response_schema=CommunicationPlan,
-            temperature=0.2
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=f"""
+            CONVERSATION HISTORY:
+            {conversation_context if conversation_context else "No previous conversation."}
+
+            CURRENT USER REQUEST:
+            {user_input}
+
+            INTENT CLASSIFICATION:
+            {intent.model_dump_json()}
+            """,
+            config=types.GenerateContentConfig(
+                system_instruction=PLANNER_PROMPT,
+                response_mime_type="application/json",
+                response_schema=CommunicationPlan,
+                temperature=0.2
+            )
         )
-    )
 
-    if response.parsed is not None:
-        return CommunicationPlan.model_validate(response.parsed)
+        if response.parsed is not None:
+            return CommunicationPlan.model_validate(response.parsed)
 
-    if response.text:
-        return CommunicationPlan.model_validate_json(response.text)
+        if response.text:
+            return CommunicationPlan.model_validate_json(response.text)
 
-    raise ValueError("Planner returned an empty response")
+        raise ValueError("Planner returned an empty response")
+
+    except ValueError:
+        raise
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Communication planning failed: {str(e)}"
+        ) from e
