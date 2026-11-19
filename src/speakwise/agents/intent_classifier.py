@@ -1,3 +1,4 @@
+
 from google.genai import types
 
 from speakwise.llm_client import client, MODEL
@@ -18,33 +19,50 @@ Categories:
    Creating, drafting or composing emails.
 
 2. interview_practice:
-   Interview preparation, mock interviews and interview answers.
+   Interview preparation, mock interviews, practicing interview
+   questions and improving interview answers.
 
 3. grammar_correction:
-   Identifying and correcting grammatical mistakes.
+   Identifying and correcting grammatical mistakes in existing text.
 
 4. tone_improvement:
-   Changing communication tone, such as making it polite,
-   professional, confident or friendly.
+   Analyzing or changing communication tone, such as making
+   existing content more polite, professional, confident or friendly.
 
-5. public_speaking:
+5. conversation_improvement:
+   Improving everyday conversational responses, replies,
+   interpersonal communication and dialogue.
+
+6. communication_evaluation:
+   Evaluating communication quality, including clarity,
+   grammar, tone, structure, confidence and effectiveness.
+   Includes scoring or rating communication performance.
+
+7. public_speaking:
    Speech preparation, presentation delivery and speaking skills.
 
-6. conflict_resolution:
+8. conflict_resolution:
    Handling disagreements, misunderstandings and workplace conflicts.
 
-7. customer_communication:
+9. customer_communication:
    Communicating with customers, handling complaints and
-   customer service responses.
+   preparing customer service responses.
 
-8. other:
-   Requests unrelated to the above categories.
+10. other:
+    Requests unrelated to the above categories.
 
 Classification rules:
 
 - Identify the user's primary goal, not merely keywords.
 - Consider the complete context of the request.
 - Select the most relevant category.
+- Choose exactly one primary intent.
+- If multiple communication goals are present, identify the
+  dominant goal. The planner will determine whether multiple
+  tools are required.
+- Distinguish between improving communication and evaluating it.
+- Do not classify every request to write a response as
+  conversation_improvement. Use the appropriate specific category.
 - Do not perform the requested task.
 - Do not invent missing context.
 - Provide a brief explanation for your classification.
