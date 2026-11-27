@@ -10,3 +10,4 @@ uvicorn[standard]
 google-genai
 httpx
 requests
+prometheus-fastapi-instrumentator
