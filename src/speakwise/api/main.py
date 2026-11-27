@@ -1,18 +1,36 @@
-"""ASGI application entry point for SpeakWise AI."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
-from speakwise.api.routes.communication import router as communication_router
+from speakwise.api.routes.communication import (
+    router as communication_router,
+)
 from speakwise.history.database import initialize_database
+from speakwise.observability.logging_config import (
+    configure_logging,
+)
+from speakwise.observability.middleware import (
+    request_logging_middleware,
+)
+
+
+configure_logging()
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """Ensure SQLite tables exist without invoking any LLM service."""
     initialize_database()
+
+    logger.info("SpeakWise API starting")
+
     yield
+
+    logger.info("SpeakWise API shutting down")
 
 
 app = FastAPI(
@@ -21,10 +39,18 @@ app = FastAPI(
     description="REST API for SpeakWise AI communication coaching.",
     lifespan=lifespan,
 )
+
+
+app.middleware("http")(request_logging_middleware)
+
 app.include_router(communication_router)
+
+Instrumentator().instrument(app).expose(
+    app,
+    endpoint="/metrics",
+)
 
 
 @app.get("/health", tags=["health"])
-def health() -> dict[str, str]:
-    """Return service availability; this endpoint never calls an LLM."""
+def health():
     return {"status": "ok"}
