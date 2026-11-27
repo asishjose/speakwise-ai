@@ -56,6 +56,30 @@ def process_request(
         conversation_context=conversation_context
     )
 
+
+#########################################################################
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    logger.info(
+        "Session %s | Strategy: %s",
+        session_id,
+        plan.execution_strategy
+    )
+
+    for index, action in enumerate(plan.actions, start=1):
+        logger.info(
+            "Plan action %s: tool=%s, "
+            "use_previous_output=%s, argument_keys=%s",
+            index,
+            action.tool_name,
+            action.use_previous_output,
+            list(action.arguments.model_dump().keys()),
+        )
+#############################################################################
+
+
     # Step 6: Execute selected tools
     execution = execute_plan(plan)
 
@@ -64,12 +88,68 @@ def process_request(
 
         assistant_response = execution["message"]
 
+    # elif execution["status"] == "success":
+
+    #     assistant_response = "\n\n".join(
+    #         str(item["output"].model_dump())
+    #         for item in execution["results"]
+    #     )
+    ## For output formatting:
+
     elif execution["status"] == "success":
 
-        assistant_response = "\n\n".join(
-            str(item["output"].model_dump())
-            for item in execution["results"]
-        )
+        response_parts = []
+
+        for item in execution["results"]:
+
+            tool_name = item["tool_name"]
+            output = item["output"]
+
+            # Convert Pydantic output to a dictionary
+            if hasattr(output, "model_dump"):
+                output = output.model_dump()
+
+            # Grammar Tool
+            if tool_name == "grammar_tool":
+
+                corrected_text = output.get("corrected_text")
+
+                if corrected_text:
+                    response_parts.append(
+                        "### Grammar correction\n"
+                        f"> {corrected_text}"
+                    )
+
+            # Tone Tool
+            elif tool_name == "tone_tool":
+
+                improved_text = output.get("improved_text")
+                explanation = output.get("explanation")
+
+                if improved_text:
+                    section = (
+                        "### Improved message\n"
+                        f"> {improved_text}"
+                    )
+
+                    if explanation:
+                        section += f"\n\n{explanation}"
+
+                    response_parts.append(section)
+
+            # Scoring Tool
+            elif tool_name == "scoring_tool":
+
+                summary = output.get("evaluation_summary")
+
+                if summary:
+                    response_parts.append(
+                        "### Evaluation summary\n"
+                        f"{summary}"
+                    )
+
+        assistant_response = "\n\n".join(response_parts)
+
 
     else:
         assistant_response = execution["message"]

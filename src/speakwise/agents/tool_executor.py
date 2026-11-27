@@ -4,6 +4,9 @@ from inspect import signature
 
 from speakwise.tools.registry import get_tool
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Text fields produced by each tool
 OUTPUT_FIELDS = {
@@ -26,7 +29,7 @@ INPUT_FIELDS = {
 }
 
 
-def _execute_action(action, previous_result=None):
+def _execute_action(action, previous_result=None, previous_tool_name=None):
 
     tool = get_tool(action.tool_name)
 
@@ -42,7 +45,7 @@ def _execute_action(action, previous_result=None):
             )
 
         output_field = OUTPUT_FIELDS.get(
-            action.tool_name
+            previous_tool_name
         )
 
         input_field = INPUT_FIELDS.get(
@@ -145,15 +148,76 @@ def execute_plan(plan):
                 })
 
     # Dependent tools execute one after another
+    # elif plan.execution_strategy == "sequential":
+
+    #     previous_result = None
+
+    #     for action in plan.actions:
+
+    #         result = _execute_action(
+    #             action,
+    #             previous_result=previous_result
+    #         )
+
+    #         results.append({
+    #             "tool_name": action.tool_name,
+    #             "output": result
+    #         })
+
+    #         previous_result = result
+
+    # Dependent tools execute one after another
+    
+    # Dependent tools execute one after another
     elif plan.execution_strategy == "sequential":
 
         previous_result = None
+        previous_tool_name = None
 
-        for action in plan.actions:
+        for index, action in enumerate(plan.actions, start=1):
 
-            result = _execute_action(
-                action,
-                previous_result=previous_result
+            logger.info(
+                "Executing step %s/%s: tool=%s, "
+                "use_previous_output=%s, previous_tool=%s, "
+                "previous_result_type=%s",
+                index,
+                len(plan.actions),
+                action.tool_name,
+                action.use_previous_output,
+                previous_tool_name,
+                type(previous_result).__name__
+                if previous_result is not None
+                else None,
+            )
+
+            try:
+                result = _execute_action(
+                    action,
+                    previous_result=previous_result,
+                    previous_tool_name=previous_tool_name,
+                )
+
+            except Exception:
+                logger.exception(
+                    "Tool failed at step %s: %s",
+                    index,
+                    action.tool_name,
+                )
+                raise
+
+            # Log output structure without exposing user content
+            if hasattr(result, "model_dump"):
+                output_data = result.model_dump()
+                output_fields = list(output_data.keys())
+            else:
+                output_fields = []
+
+            logger.info(
+                "Tool completed: %s, output_type=%s, "
+                "output_fields=%s",
+                action.tool_name,
+                type(result).__name__,
+                output_fields,
             )
 
             results.append({
@@ -161,7 +225,13 @@ def execute_plan(plan):
                 "output": result
             })
 
+            # UPDATE HERE: Store the current tool's result
             previous_result = result
+
+            # UPDATE HERE: Store the current tool's name
+            previous_tool_name = action.tool_name
+
+
 
     else:
         raise ValueError(
@@ -174,3 +244,5 @@ def execute_plan(plan):
         "message": "Communication task completed successfully.",
         "results": results
     }
+
+
